@@ -21,24 +21,57 @@ import 'firebase/compat/auth';
 import HeaderBar from '../components/HeaderBar';
 import BottomBar from '../components/BottomBar';
 
-const CustomModal = ({ modalVisible, handleCloseModal }) => {
+const CustomModal = ({ modalVisible, handleCloseModal, handleDeletePost }) => {
   return (
     <Modal
       animationType="fade"
       transparent={true}
       visible={modalVisible}
-      onRequestClose={handleCloseModal}
+      onRequestClose={handleCloseModal} // Gère le bouton "retour" Android
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>Options</Text>
-          <Pressable style={styles.modalOption} onPress={() => { /* Logic to delete post */ handleCloseModal(); }}>
+
+          {/* Bouton Supprimer */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.modalOption,
+              { opacity: pressed ? 0.6 : 1.0 },
+            ]}
+            onPress={async () => {
+              // Attendre la suppression avant de fermer le modal
+              const success = await handleDeletePost();
+              if (success !== false) {
+                handleCloseModal();
+              }
+            }}
+          >
             <Text style={styles.modalOptionText}>Supprimer</Text>
           </Pressable>
-          <Pressable style={styles.modalOption} onPress={() => { /* Logic to save post */ handleCloseModal(); }}>
-            <Text style={styles.modalOptionText}>Enregistrer</Text>
+
+          {/* Bouton Enregistrer (placeholder) */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.modalOption,
+              { opacity: pressed ? 0.6 : 1.0 },
+            ]}
+            onPress={() => {
+              // Logique d’enregistrement à ajouter ici
+              handleCloseModal();
+            }}
+          >
+            <Text style={styles.modalOptionText}>Enregistrer (à venir)</Text>
           </Pressable>
-          <Pressable style={styles.modalOption} onPress={handleCloseModal}>
+
+          {/* Bouton Annuler */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.modalOption,
+              { opacity: pressed ? 0.6 : 1.0 },
+            ]}
+            onPress={handleCloseModal}
+          >
             <Text style={styles.modalOptionText}>Annuler</Text>
           </Pressable>
         </View>
@@ -46,7 +79,6 @@ const CustomModal = ({ modalVisible, handleCloseModal }) => {
     </Modal>
   );
 };
-
 const Home = ({ navigation }) => {
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,6 +128,7 @@ const Home = ({ navigation }) => {
             id: doc.id,
             ...postData,
             date,
+            userId: postData.user, // <-- ajoute cette ligne pour garder l'UID utilisateur
             user: {
               name: userData.Name,
               profileImage: userData.Profile_Image,
@@ -271,7 +304,37 @@ const handleCommentSubmit = async (postId) => {
     setModalVisible(false);
     setSelectedPostId(null);
   };
-
+  const handleDeletePost = async () => {
+    if (!selectedPostId) return;
+  
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      alert('Vous devez être connecté pour supprimer un post.');
+      return;
+    }
+  
+    // Trouver le post sélectionné
+    const postToDelete = posts.find(post => post.id === selectedPostId);
+    if (!postToDelete) return;
+  
+    // Vérifier que le post appartient bien à l'utilisateur connecté
+    if (postToDelete.userId !== user.uid && postToDelete.user.id !== user.uid) {
+      alert("Vous ne pouvez supprimer que vos propres posts.");
+      return;
+    }
+  
+    try {
+      await firebase.firestore().collection('posts').doc(selectedPostId).delete();
+  
+      // Mettre à jour localement l'état des posts
+      setPosts(posts.filter(post => post.id !== selectedPostId));
+      setSelectedPostId(null);
+    } catch (error) {
+      console.error("Erreur lors de la suppression du post :", error);
+      alert("Erreur lors de la suppression du post.");
+    }
+  };
+  
   return (
     <SafeAreaView style={styles.container}>
       <HeaderBar namePage="Home"/>
@@ -389,7 +452,9 @@ const handleCommentSubmit = async (postId) => {
       <CustomModal
         modalVisible={modalVisible}
         handleCloseModal={handleCloseModal}
+        handleDeletePost={handleDeletePost}
       />
+
     </SafeAreaView>
   );
 };

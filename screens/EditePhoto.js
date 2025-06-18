@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomBar from '../components/BottomBar';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
 
 const EditePhoto = () => {
+  const navigation = useNavigation();
   const [image, setImage] = useState('');
-  const [confirmationMessage, setConfirmationMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   const handleEditePhoto = async () => {
     try {
@@ -31,25 +31,21 @@ const EditePhoto = () => {
           Profile_Image: imageURL,
         });
 
-        console.log('Image de profil mise à jour avec succès');
-
-        setImage('');
-        setConfirmationMessage('Image de profil mise à jour avec succès');
-        setTimeout(() => {
-          setConfirmationMessage('');
-        }, 3000);
+        Alert.alert("Succès", "Image de profil mise à jour avec succès !", [
+          {
+            text: "OK",
+            onPress: () => {
+              setImage('');
+              navigation.navigate('Profile');  // Remplace 'Profil' par le nom exact de ta route Profil si besoin
+            }
+          }
+        ]);
       } else {
-        setErrorMessage('Veuillez sélectionner une image');
-        setTimeout(() => {
-          setErrorMessage('');
-        }, 3000);
+        Alert.alert("Erreur", "Veuillez sélectionner une image");
       }
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'image de profil :', error.message);
-      setErrorMessage('Erreur lors de la mise à jour de l\'image de profil. Veuillez réessayer.');
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 3000);
+      Alert.alert("Erreur", "Erreur lors de la mise à jour de l'image de profil. Veuillez réessayer.");
     }
   };
 
@@ -57,7 +53,7 @@ const EditePhoto = () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        console.log("Autorisation d'accéder à la galerie refusée");
+        Alert.alert("Permission refusée", "Autorisation d'accéder à la galerie refusée");
         return;
       }
 
@@ -73,31 +69,41 @@ const EditePhoto = () => {
       }
     } catch (error) {
       console.error('Erreur lors de la sélection de l\'image :', error.message);
-      setErrorMessage('Erreur lors de la sélection de l\'image. Veuillez réessayer.');
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 3000);
+      Alert.alert("Erreur", "Erreur lors de la sélection de l'image. Veuillez réessayer.");
     }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.formContainer}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Éditer la photo</Text>
+      </View>
+
+      {/* Contenu principal dans ScrollView */}
+      <ScrollView contentContainerStyle={styles.contentContainer}>
+        {image ? (
+          <Image source={{ uri: image }} style={styles.previewImage} />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <Text style={{ color: '#888' }}>Aucune image sélectionnée</Text>
+          </View>
+        )}
+
         <TouchableOpacity style={styles.updateButton} onPress={pickImage}>
           <Text style={styles.buttonText}>Sélectionner une image</Text>
         </TouchableOpacity>
-        <Text></Text>
+
         <TouchableOpacity style={styles.updateButton} onPress={handleEditePhoto}>
           <Ionicons name="pencil" size={20} color="white" />
         </TouchableOpacity>
-        {confirmationMessage ? (
-          <Text style={styles.confirmationMessage}>{confirmationMessage}</Text>
-        ) : null}
-        {errorMessage ? (
-          <Text style={styles.errorMessage}>{errorMessage}</Text>
-        ) : null}
-      </View>
-      <BottomBar namePage="CreatePost" />
+      </ScrollView>
+
+      {/* Footer */}
+      <BottomBar navigation={navigation} />
     </View>
   );
 };
@@ -105,33 +111,63 @@ const EditePhoto = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'column',
-    paddingTop: 10,
+    backgroundColor: '#fff',
   },
-  formContainer: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#FFF',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    position: 'relative',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+  },
+  title: {
+    fontSize: 24,
+    color: 'green',
+  },
+  contentContainer: {
+    flexGrow: 1,
+    padding: 20,
+    paddingBottom: 80, // pour éviter que le contenu soit caché par BottomBar
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  placeholderImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   updateButton: {
     backgroundColor: 'green',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
     borderRadius: 4,
+    marginBottom: 10,
   },
   buttonText: {
     color: '#FFF',
-  },
-  confirmationMessage: {
-    color: 'green',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    color: 'red',
-    marginTop: 10,
-    textAlign: 'center',
+    fontSize: 16,
+    marginRight: 8,
   },
 });
 

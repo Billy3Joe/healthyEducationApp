@@ -5,6 +5,7 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,67 +13,73 @@ import { MaterialIcons } from '@expo/vector-icons';
 import BottomBar from '../components/BottomBar';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
-// Import de l'image de profil provisoire
-// import placeholderImage from '../assets/img-profiles/avatar.jpg';
 
 export default function Profile() {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Get the current user's UID
     const uid = firebase.auth().currentUser.uid;
-
-    // Retrieve the user document from Firestore
-    firebase.firestore().collection('users').doc(uid).get()
-      .then((doc) => {
+    const unsubscribe = firebase.firestore()
+      .collection('users')
+      .doc(uid)
+      .onSnapshot(doc => {
         if (doc.exists) {
-          console.log(doc.data());
-          // Set the user state with the retrieved data
           setUser(doc.data());
         } else {
           console.log("User document not found");
         }
-      })
-      .catch((error) => {
+      }, error => {
         console.error("Error retrieving user document:", error);
       });
+    return () => unsubscribe();
   }, []);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
-          <Ionicons onPress={() => navigation.navigate('Home')} name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Édition de l'utilisateur</Text>
-      </View>
-      {/* <Image source={{ uri: user?.Profile_Image || placeholderImage }} style={styles.profileImage} /> */}
-      <Image source={{uri: user?.Profile_Image}} style={styles.profileImage} />
-      {/* <Image source={placeholderImage} style={styles.profileImage} /> */}
-      <View style={styles.editIconContainer}>
-        <Ionicons name="pencil" size={20} color="white" />
-      </View>
-      <View style={styles.userInfoContainer}>
-        <Text style={styles.name}>{user?.Name}</Text>
-      </View>
-      <View style={styles.emailContainer}>
-        <Text style={styles.details}>EMAIL: {user?.Email}</Text>
-      </View>
-      <View style={styles.infosContainer}>
-        <TouchableOpacity onPress={() => navigation.navigate('EditePhoto')} style={[styles.editButton]}>
-              <Text style={{fontWeight:'bold', color:'#FFF',}}>Image</Text>
-              <MaterialIcons name="chevron-right" size={20} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('EditeName')} style={[styles.editButton]}>
-              <Text style={{fontWeight:'bold', color:'#FFF',}}>Nom</Text>
-              <MaterialIcons name="chevron-right" size={20} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('EditeEmail')} style={[styles.editButton]}>
-              <Text style={{fontWeight:'bold', color:'#FFF',}}>Email</Text>
-              <MaterialIcons name="chevron-right" size={20} color="white" />
-        </TouchableOpacity>
-    </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
+            <Ionicons name="arrow-back" size={24} color="black" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Édition de l'utilisateur</Text>
+        </View>
+
+        <Image
+          source={{ uri: user?.Profile_Image }}
+          style={styles.profileImage}
+        />
+{/* 
+        <View style={styles.editIconContainer}>
+          <Ionicons name="pencil" size={20} color="white" />
+        </View> */}
+
+        <View style={styles.userInfoContainer}>
+          <Text style={styles.name}>{user?.Name}</Text>
+        </View>
+
+        <View style={styles.emailContainer}>
+          <Text style={styles.details}>{user?.Email}</Text>
+        </View>
+
+        <View style={styles.infosContainer}>
+          <TouchableOpacity onPress={() => navigation.navigate('EditePhoto')} style={styles.editButton}>
+            <Text style={{ fontWeight: 'bold', color: '#FFF' }}>Image</Text>
+            <MaterialIcons name="chevron-right" size={20} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('EditeName')} style={styles.editButton}>
+            <Text style={{ fontWeight: 'bold', color: '#FFF' }}>Nom</Text>
+            <MaterialIcons name="chevron-right" size={20} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('EditeEmail')} style={styles.editButton}>
+            <Text style={{ fontWeight: 'bold', color: '#FFF' }}>Email</Text>
+            <MaterialIcons name="chevron-right" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
       <View style={styles.footer}>
         <BottomBar namePage="Home" />
       </View>
@@ -83,9 +90,12 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  scrollContent: {
     padding: 10,
+    alignItems: 'center',
+    paddingBottom: 80, // pour éviter que le contenu soit caché sous le footer
   },
   header: {
     flexDirection: 'row',
@@ -93,6 +103,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
     marginBottom: 16,
+    width: '100%',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
   },
   profileImage: {
     width: 100,
@@ -111,28 +126,31 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 5,
   },
+  userInfoContainer: {
+    marginTop: 20,
+  },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  emailContainer: {
+    marginBottom: 20,
+  },
   details: {
     fontSize: 16,
-    marginBottom: 5,
+  },
+  infosContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
   },
   editButton: {
     flexDirection: 'row',
     marginTop: 10,
     backgroundColor: 'green',
-    padding: 5,
+    padding: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 190,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    justifyContent: 'space-between',
+    borderRadius: 5,
   },
 });
